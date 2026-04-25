@@ -16,4 +16,6 @@ export function OpenFolder(arg1:string):Promise<void>;
 
 export function OpenInVSCode(arg1:string):Promise<void>;
 
+export function OpenLink(arg1:string):Promise<void>;
+
 export function SetBaseDir(arg1:string):Promise<void>;

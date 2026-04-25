@@ -430,6 +430,14 @@ function ProjectCard({ project, onRefresh }: { project: Project, onRefresh: () =
     }
   };
 
+  const openLink = async (url: string) => {
+    try {
+      await AppService.OpenLink(url);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -464,10 +472,13 @@ function ProjectCard({ project, onRefresh }: { project: Project, onRefresh: () =
       
       <div className="text-sm text-slate-400 line-clamp-2 mb-6 min-h-[40px]">
         {project.type === 'Github' && project.description && project.description.startsWith('http') ? (
-          <a href={project.description} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-primary transition-colors group/link">
+          <button 
+            onClick={() => openLink(project.description)}
+            className="flex items-center gap-2 hover:text-primary transition-colors group/link cursor-pointer"
+          >
             <Link size={14} className="group-hover/link:text-primary" />
-            <span className="truncate">{project.description}</span>
-          </a>
+            <span className="truncate hover:underline">{project.description}</span>
+          </button>
         ) : (
           project.description || "No description provided."
         )}
@@ -516,6 +527,17 @@ function SettingsPage({ config, onUpdate }: { config: Config | null, onUpdate: (
               className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-primary/50 outline-none"
             />
             <button onClick={handleUpdate} className="px-6 bg-primary rounded-lg font-bold hover:bg-primary/90 transition-all">Update</button>
+          </div>
+        </div>
+
+        <div className="pt-6 border-t border-slate-800 space-y-4">
+          <div className="flex items-center gap-2 text-slate-200 font-semibold">
+            <Code size={18} />
+            <h3>Developer Tools</h3>
+          </div>
+          <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
+            <p className="text-sm text-slate-300">Press <kbd className="bg-slate-900 px-2 py-1 rounded border border-slate-700 text-xs font-mono">Ctrl + Shift + F12</kbd> to open Developer Tools</p>
+            <p className="text-xs text-slate-500">Useful for debugging and inspecting the application interface.</p>
           </div>
         </div>
 

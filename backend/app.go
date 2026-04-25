@@ -29,13 +29,14 @@ type Project struct {
 
 // Config data
 type Config struct {
-	BaseDir string `json:"baseDir"`
+	BaseDir       string `json:"baseDir"`
+	LastWorkspace string `json:"lastWorkspace"`
 }
 
 // App struct
 type App struct {
-	ctx     context.Context
-	config  Config
+	ctx      context.Context
+	config   Config
 	projects []Project
 }
 
@@ -54,16 +55,23 @@ func (a *App) initApp() {
 	// 1. Get BaseDir
 	exePath, _ := os.Executable()
 	baseDir := filepath.Dir(exePath)
-	
+
 	// Check if config exists
 	configDir := filepath.Join(baseDir, ".config")
 	configPath := filepath.Join(configDir, "config.json")
-	
+
 	if _, err := os.Stat(configPath); err == nil {
 		data, _ := os.ReadFile(configPath)
 		json.Unmarshal(data, &a.config)
 	} else {
 		a.config.BaseDir = baseDir
+	}
+
+	// Restore last workspace if it exists and is valid
+	if a.config.LastWorkspace != "" {
+		if _, err := os.Stat(a.config.LastWorkspace); err == nil {
+			a.config.BaseDir = a.config.LastWorkspace
+		}
 	}
 
 	// 2. Ensure directories
@@ -120,6 +128,7 @@ func (a *App) SetBaseDir(path string) error {
 		return fmt.Errorf("directory does not exist")
 	}
 	a.config.BaseDir = path
+	a.config.LastWorkspace = path
 	a.saveConfig()
 	a.ensureDirs()
 	a.loadProjects()
@@ -202,6 +211,18 @@ func (a *App) OpenInVSCode(path string) error {
 	return exec.Command("code", path).Start()
 }
 
+// OpenLink opens a URL in the system default browser
+func (a *App) OpenLink(url string) error {
+	var cmd *exec.Cmd
+	switch {
+	case os.Getenv("WAYLAND_DISPLAY") != "":
+		cmd = exec.Command("xdg-open", url)
+	default:
+		cmd = exec.Command("cmd", "/c", "start", url)
+	}
+	return cmd.Start()
+}
+
 // DeleteProject removes a project record and optionally its files
 func (a *App) DeleteProject(id string, deleteFiles bool) error {
 	for i, p := range a.projects {
@@ -220,10 +241,10 @@ func (a *App) DeleteProject(id string, deleteFiles bool) error {
 // CloneProject clones a git repository
 func (a *App) CloneProject(url string, name string) error {
 	destPath := filepath.Join(a.config.BaseDir, "Github", name)
-	
+
 	// Create a log event for the frontend
 	logTask := "clone-" + name
-	
+
 	cmd := exec.Command("git", "clone", "--progress", url, destPath)
 	return a.runTask(cmd, logTask, func() {
 		// On Success
@@ -291,6 +312,18 @@ func (a *App) runTask(cmd *exec.Cmd, taskID string, onSuccess func()) error {
 		return err
 	}
 
+	// Create logs directory
+	logsDir := filepath.Join(a.config.BaseDir, ".config", "logs")
+	os.MkdirAll(logsDir, 0755)
+
+	// Create log file
+	logFile := filepath.Join(logsDir, taskID+".log")
+	f, err := os.Create(logFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
 	progressRegex := regexp.MustCompile(`(\d+)%`)
 
 	scanFunc := func(r io.Reader) {
@@ -314,6 +347,11 @@ func (a *App) runTask(cmd *exec.Cmd, taskID string, onSuccess func()) error {
 			if line == "" {
 				continue
 			}
+			
+			// Write to log file
+			f.WriteString(line + "\n")
+			f.Sync()
+			
 			runtime.EventsEmit(a.ctx, "task:log", map[string]string{
 				"taskId": taskID,
 				"log":    line,
@@ -336,12 +374,12 @@ func (a *App) runTask(cmd *exec.Cmd, taskID string, onSuccess func()) error {
 		err := cmd.Wait()
 		if err == nil {
 			onSuccess()
-			runtime.EventsEmit(a.ctx, "task:done", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, "task:done", map[string]any{
 				"taskId":  taskID,
 				"success": true,
 			})
 		} else {
-			runtime.EventsEmit(a.ctx, "task:done", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, "task:done", map[string]any{
 				"taskId":  taskID,
 				"success": false,
 				"error":   err.Error(),

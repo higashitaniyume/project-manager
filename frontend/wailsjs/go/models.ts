@@ -2,6 +2,7 @@ export namespace backend {
 	
 	export class Config {
 	    baseDir: string;
+	    lastWorkspace: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -10,6 +11,7 @@ export namespace backend {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.baseDir = source["baseDir"];
+	        this.lastWorkspace = source["lastWorkspace"];
 	    }
 	}
 	export class Project {

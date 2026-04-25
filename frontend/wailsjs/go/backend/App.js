@@ -30,6 +30,10 @@ export function OpenInVSCode(arg1) {
   return window['go']['backend']['App']['OpenInVSCode'](arg1);
 }
 
+export function OpenLink(arg1) {
+  return window['go']['backend']['App']['OpenLink'](arg1);
+}
+
 export function SetBaseDir(arg1) {
   return window['go']['backend']['App']['SetBaseDir'](arg1);
 }
